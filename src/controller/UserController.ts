@@ -1,50 +1,63 @@
 import { Request, Response } from "express";
-import { UserInputDTO, LoginInputDTO} from "../model/User";
-import { UserBusiness } from "../business/UserBusiness";
-import { BaseDatabase } from "../data/BaseDatabase";
+import { UserInputDTO, LoginInputDTO,EditUserInputDTO} from "../model/User";
+import  {UserBusiness}  from "../business/UserBusiness";
+import {CustomError} from "../error/CustomError"
 
-export class UserController {
-    async signup(req: Request, res: Response) {
+export class UserController{
+    private userBusiness: UserBusiness
+    constructor(){
+        this.userBusiness = new UserBusiness()
+    }
+
+    public signup =async (req: Request, res: Response)=>{
         try {
-
-            const input: UserInputDTO = {
+            const input: UserInputDTO ={
+                name:req.body.name,
                 email: req.body.email,
-                name: req.body.name,
                 password: req.body.password,
-                role: req.body.role
+                role: req.body.role,
             }
 
-            const userBusiness = new UserBusiness();
-            const token = await userBusiness.createUser(input);
-
-            res.status(200).send({ token });
-
-        } catch (error) {
-            res.status(400).send({ error: error.message });
+            const token =await this.userBusiness.creatUser(input)
+            res.status(201).send({ message:"Usuário criado com sucesso!", token})
+            
+        } catch (error:any) {
+            res.status(400).send(error.sqlMessage || error.message)
+            
         }
-
-        await BaseDatabase.destroyConnection();
     }
 
-    async login(req: Request, res: Response) {
-
+    public login =async (req: Request, res: Response) =>{
         try {
-
-            const loginData: LoginInputDTO = {
+            const input: LoginInputDTO ={
                 email: req.body.email,
-                password: req.body.password
-            };
+                password: req.body.password,
+            }
+            const token =await this.userBusiness.login(input)
 
-            const userBusiness = new UserBusiness();
-            const token = await userBusiness.getUserByEmail(loginData);
-
-            res.status(200).send({ token });
-
-        } catch (error) {
-            res.status(400).send({ error: error.message });
+            res.status(200).send({ message: "Login feito com sucesso",token})
+            
+        } catch (error:any) {
+            res.status(400).send(error.sqlMessage || error.message)
+            
         }
-
-        await BaseDatabase.destroyConnection();
     }
 
+    public editUser =async (req: Request, res: Response) =>{
+        try {
+            const token =req.headers.authorization as string
+            const input:EditUserInputDTO = {
+                name: req.body.name,
+                email: req.body.email,
+                id: req.body.id,
+            }
+
+            await this.userBusiness.editUser(input, token)
+            res.status(200).send({ message: "Usuario Alterado com sucesso"})
+            
+        } catch (error:any) {
+            res.status(400).send(error.sqlMessage || error.message)
+            
+        }
+    }
 }
