@@ -1,54 +1,76 @@
+import { NotFoundError } from "../error/NotFoundError";
+import { Show, ShowOutPutDTO, WeekDay } from "../model/Show";
 import { BaseDatabase } from "./BaseDatabase";
-import { show, EditShowInputDTO } from "../model/Show";
-import { CustomError } from "../error/CustomError"
 
-export class ShowDatabase extends BaseDatabase {
-
+export class ShowDatabase extends BaseDatabase{
+    
     private static TABLE_NAME = "NOME_TABELA_SHOWS"
-    public insertShow = async (show: show) => {
-        try {
 
-            await ShowDatabase.connection.insert({
+    public async createShow(show: Show): Promise<void>{
+        await this.getConnection()
+        .insert({
+            id: show.getId(),
+            band_id: show.getBandId(),
+            start_time: show.getStartTime(),
+            end_time: show.getEndTime(),
+            week_day: show.getWeekDay()
+        })
+        .into(ShowDatabase.TABLE_NAME)
+    }
+
+    public async getShowsByTime(
+        weekDay: WeekDay,
+        startTime: number,
+        endTime: number
+    ): Promise<ShowOutPutDTO>{
+        const shows = await this.getConnection().raw(`
+            SELECT id, start_time as startTime,
+                end_time as endTime,
+                week_day as weekDay
+            FROM ${ShowDatabase.TABLE_NAME} 
+            WHERE week_day = "${weekDay}"
+            AND start_time <= "${endTime}"
+            AND end_time >= "${startTime}"
+            ORDER BY start_time ASC
+        `)
+
+        return shows.map((show: any) => {
+            return {
                 id: show.id,
-                weekDay: show.weekDay,
-                startTime: show.startTime,
+                bandId: show.bandId,
+                startTime: show.startTIme,
                 endTime: show.endTime,
-
-
-            })
-                .into(ShowDatabase.TABLE_NAME)
-
-        } catch (error: any) {
-            throw new CustomError(400, error.message)
-
-        }
+                weekDay: show.weekDay
+            }
+        })
     }
 
-    public getShowById = async (id: string) => {
-        try {
-            const result = await ShowDatabase.connection(ShowDatabase.TABLE_NAME)
-                .select()
-                .where({ id })
-            return result[0]
+    public async getShowsByWeekDayOrFail(weekDay: WeekDay): Promise<ShowOutPutDTO>{
+        const shows = await this.getConnection().raw(`
+            SELECT s.id as id,
+                b.id as bandId,
+                s.start_time as startTime,
+                s.end_time as endTime,
+                s.week_day as weekDay,
+                b.musical_genre as musicGenre
+            FROM ${this.tableNames.shows} s
+            LEFT JOIN ${this.tableNames.bands} b
+            ON b.id = s.band_id
+            WHERE s.week_day = "${weekDay}"
+            ORDER BY start_time ASC
+        `)
 
-        } catch (error: any) {
-            throw new CustomError(400, error.message)
-
+        if(!shows.length){
+            throw new NotFoundError(`não foi encontrado show para ${weekDay}`)
         }
+
+        return shows[0].map((data: any) => ({
+            id: data.id,
+            bandId: data.bandId,
+            startTime: data.startTime,
+            endTime: data.endTime,
+            weekDay: data.weekDay,
+            mainGenre: data.mainGenre
+        }))
     }
-
-    public editShow = async (show: EditShowInputDTO) => {
-        try {
-            await ShowDatabase.connection
-                .update({ weekDay: show.weekDay, startTime: show.startTime, endTime: show.endTime })
-                .where({ id: show.id })
-                .into(ShowDatabase.TABLE_NAME)
-        } catch (error: any) {
-            throw new CustomError(400, error.message)
-
-        }
-    }
-
-
-
 }

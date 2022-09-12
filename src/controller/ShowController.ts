@@ -1,31 +1,61 @@
 import { Request, Response } from "express";
-import { ShowInputDTO} from "../model/Show";
-import  {ShowBusiness}  from "../business/ShowBusiness";
-import {CustomError} from "../error/CustomError"
+import { ShowBusiness } from "../business/ShowBusiness";
+import { BandDatabase } from "../data/BandDatabase";
+import { BaseDatabase } from "../data/BaseDatabase";
+import { ShowDatabase } from "../data/ShowDatabase";
+import { Show, ShowInputDTO } from "../model/Show";
+import { Authenticator } from "../services/Authenticator";
+import { IdGenerator } from "../services/IdGenerator";
 
-export class ShowController{
-    private showBusiness: ShowBusiness
-    constructor(){
-        this.showBusiness = new ShowBusiness()
-    }
+export class ShowController {
+    async createShow(req: Request, res: Response){
+        try{
+            const weekDay = Show.toWeekDayEnum(req.body.weekDay)
 
-    public signup =async (req: Request, res: Response)=>{
-        try {
-            const input: ShowInputDTO ={
-                
-                weekDay: req.body.weekDay,
-                startTime: req.body.startTime,
-                endTime: req.body.endTime,
+            const input: ShowInputDTO = {
+                weekDay,
                 bandId: req.body.bandId,
-                role: req.body.role
+                startTime: req.body.startTime,
+                endTime: req.body.endTime
             }
 
-            const token =await this.showBusiness.creatShow(input)
-            res.status(201).send({ message:"Show criado com sucesso!", token})
-            
-        } catch (error:any) {
-            res.status(400).send(error.sqlMessage || error.message)
-            
+            const showBusiness =  new ShowBusiness(
+                new ShowDatabase,
+                new BandDatabase,
+                new IdGenerator,
+                new Authenticator
+            )
+
+            await showBusiness.createShow(input, req.headers.authorization as string)
+
+            res.sendStatus(200)
+
+        }catch(error: any){
+            res.status(error.customErrorCode || 400).send(error.message)
+        }finally{
+            await BaseDatabase.destroyConnection()
+        }
+    }
+
+    async getShowsByWeekDay(req: Request, res: Response){
+        try{
+            const weekDay = Show.toWeekDayEnum(req.query.weekDay as string)
+
+            const showBusiness = new ShowBusiness(
+                new ShowDatabase,
+                new BandDatabase,
+                new IdGenerator,
+                new Authenticator
+            )
+
+            const shows = await showBusiness.getShowByWeekDay(weekDay)
+
+            res.status(200).send(shows)
+
+        }catch(error: any){
+            res.status(error.customErrorCode || 400).send(error.message)
+        }finally{
+            await BaseDatabase.destroyConnection()
         }
     }
 }

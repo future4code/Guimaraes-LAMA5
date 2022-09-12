@@ -1,101 +1,73 @@
-import { UserInputDTO, LoginInputDTO } from "../model/User";
+import { UserInputDTO, LoginInputDTO, UserRole } from "../model/User";
 import { UserDatabase } from "../data/UserDatabase";
-import IdGenerator from "../services/IdGenerator";
-import HashManager from "../services/HashManager";
-import Authenticator from "../services/Authenticator";
-import { CustomError, InvalidPassword, UserNotFound, Unauthorized } from "../error/CustomError";
-import { user, EditUserInputDTO, EditUserInput } from "../model/User";
-import { AuthenticationData } from "../model/type";
+import { IdGenerator } from "../services/IdGenerator";
+import { HashManager } from "../services/HashManager";
+import { Authenticator } from "../services/Authenticator";
+import { UserRepository } from "./UserRepository";
+import { InvalidInputError } from "../error/InvalidInputError";
 
 export class UserBusiness {
-    private userDB: UserDatabase
-    constructor() {
-        this.userDB = new UserDatabase()
+
+    constructor(
+        private userDatabase: UserRepository,
+        private idGenerator: IdGenerator,
+        private hashManager: HashManager,
+        private authenticator: Authenticator
+    ){
+    }
+    async createUser(user: UserInputDTO) {
+        if(!user.email || !user.name || !user.password || !user.role){
+            throw new InvalidInputError("Todos os campos devem ser preenchidos")
+        }
+
+        if(user.role !== UserRole.ADMIN && user.role !== UserRole.NORMAL){
+            throw new InvalidInputError("role deve ser 'ADMIN' ou 'NORMAL'")
+        }
+
+        if(!user.email.includes("@")){
+            throw new InvalidInputError("Formato de e-mail inválido")
+        }
+
+        if(user.password.length < 6){
+            throw new InvalidInputError("A senha deve ser igual ou superior a 6 digitos")
+        }
+
+        const id = this.idGenerator.generate();
+
+        const hashPassword = await this.hashManager.hash(user.password);
+
+        await this.userDatabase.createUser(id, user.email, user.name, hashPassword, user.role);
+
+        const accessToken = this.authenticator.generateToken({ id, role: user.role });
+
+        return accessToken;
     }
 
-    public creatUser = async (input: UserInputDTO) => {
-        let { name, email, password, role } = input
+    async getUserByEmail(user: LoginInputDTO) {
 
-        if (!name || !email || !password || !role) {
-            throw new CustomError(422, "Falta de Parâmetro")
+        if(!user.email || !user.password){
+            throw new InvalidInputError("Todos os campos devem ser preenchidos")
         }
 
-        if (password.length < 6) {
-            throw new InvalidPassword()
-
+        if(!user.email.includes("@")){
+            throw new InvalidInputError("Formato de e-mail inválido")
         }
 
-        if (role !== "NORMAL" && role !== "ADMIN") {
-            return "NORMAL"
+        const userFromDB = await this.userDatabase.getUserByEmail(user.email);
+
+        if(!userFromDB){
+            throw new Error(`Usuário não encontrado com o email ${user.email}`)
         }
 
+        const hashCompare = await this.hashManager.compare(user.password, userFromDB.getPassword());
 
-
-        const id = IdGenerator.generateId()
-        const hash = await HashManager.generateHash(password)
-
-        const user: user = {
-            id,
-            name,
-            email,
-            password: hash,
-            role
-
-        }
-
-        await this.userDB.insertUser(user)
-        const token = Authenticator.generateToken({ id, role })
-        return token
-
-    }
-
-    public login = async (input: LoginInputDTO) => {
-        let { email, password } = input
-
-        if (!email || !password) {
-            throw new CustomError(400, "Por favor preencher todos os campos")
-
-        }
-
-        const user = await this.userDB.getUserByEmail(email)
-        const hashCompare = await HashManager.compareHash(password, user.password)
+        const accessToken = this.authenticator.generateToken({ id: userFromDB.getId(), role: userFromDB.getRole() });
 
         if (!hashCompare) {
-            throw new InvalidPassword()
+            throw new Error("Invalid Password!");
         }
 
-        const payload: AuthenticationData = {
-            id: user.id,
-            role: user.role
-        }
-
-        const token = Authenticator.generateToken(payload)
-        return token
-
-    }
-
-    public editUser = async (input: EditUserInputDTO, token: string) => {
-        let { name, email, id } = input
-
-        if (!name || !email || !id) {
-            throw new CustomError(422, "Ausencia de parâmetros")
-        }
-        const userExist = await this.userDB.getUserById(id)
-        if (!userExist) {
-            throw new UserNotFound()
-        }
-
-        const tokenData = Authenticator.getTokenData(token)
-        if (tokenData.role !== "ADMIN") {
-            throw new Unauthorized()
-        }
-
-        const editUser: EditUserInput = {
-            name,
-            email,
-            id
-        }
-        await this.userDB.editUser(editUser)
+        return accessToken;
     }
 }
 
