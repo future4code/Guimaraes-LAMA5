@@ -1,4 +1,4 @@
-export type banda = {
+export type band = {
    id: string
    name: string
    musicGenre: string
@@ -7,7 +7,7 @@ export type banda = {
 
 
 }
-export interface BandaInputDTO {
+export interface BandInputDTO {
    name: string,
    musicGenre: string,
    responsible: string,
@@ -16,7 +16,7 @@ export interface BandaInputDTO {
 
 }
 
-export interface EditBandaInputDTO {
+export interface EditBandInputDTO {
    id: string
    name: string,
    musicGenre: string,
@@ -24,10 +24,11 @@ export interface EditBandaInputDTO {
 
 }
 
-export interface EditBandaInput {
+export interface EditBandInput {
    id: string
    name: string,
    musicGenre: string,
+   responsible: string
 
 }
  

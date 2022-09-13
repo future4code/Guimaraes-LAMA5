@@ -55,7 +55,7 @@ export class InvalidResponsible extends CustomError{
   }
 }
 
-export class BandaNotFound extends CustomError{ 
+export class BandNotFound extends CustomError{ 
   constructor(){
       super(404, "Banda não encontrada")
   }

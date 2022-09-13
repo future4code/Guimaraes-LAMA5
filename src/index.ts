@@ -1,19 +1,16 @@
-import dotenv from "dotenv";
-import {AddressInfo} from "net";
-import express from "express";
-import { userRouter } from "./routes/userRouter";
-dotenv.config();
-const app = express();
+import {app} from "./app"
+import {userRouter} from "./routes/userRouter"
+import {showRouter} from "./routes/showRouter"
+import {bandRouter} from "./routes/bandRouter"
 
-app.use(express.json());
 
-app.use("/user", userRouter);
 
-const server = app.listen(3000, () => {
-    if (server) {
-      const address = server.address() as AddressInfo;
-      console.log(`Servidor rodando em http://localhost:${address.port}`);
-    } else {
-      console.error(`Falha ao rodar o servidor.`);
-    }
-  });
+app.get("/", async function(){
+  console.log("endpoint teste")
+})
+
+app.use("/user", userRouter)
+
+app.use("/show",showRouter)
+
+app.use("/band",bandRouter)

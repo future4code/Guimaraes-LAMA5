@@ -1,17 +1,17 @@
 import { Request, Response } from "express";
-import { BandaInputDTO} from "../model/Banda";
-import  {BandaBusiness}  from "../business/BandaBusiness";
+import { BandInputDTO} from "../model/Band";
+import  {BandBusiness}  from "../business/BandBusiness";
  
 
-export class BandaController{
-    private bandaBusiness: BandaBusiness
+export class BandController{
+    private bandaBusiness: BandBusiness
     constructor(){
-        this.bandaBusiness = new BandaBusiness()
+        this.bandaBusiness = new BandBusiness()
     }
 
     public signup =async (req: Request, res: Response)=>{
         try {
-            const input: BandaInputDTO ={
+            const input: BandInputDTO ={
                 
                 
                 name: req.body.name,
@@ -20,7 +20,7 @@ export class BandaController{
                 role: req.body.role
             }
 
-            const token =await this.bandaBusiness.creatBanda(input)
+            const token =await this.bandaBusiness.creatBand(input)
             res.status(201).send({ message:"Banda Cadastrada com sucesso!", token})
             
         } catch (error:any) {
